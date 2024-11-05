@@ -1,0 +1,59 @@
+# lightning.pytorch==2.1.2
+seed_everything: 42
+data:
+  train_before_chip_dir: /media/ate/ssd/mrv/patch256/train/before/
+  train_after_chip_dir: /media/ate/ssd/mrv/patch256/train/after/
+  train_label_dir: /media/ate/ssd/mrv/patch256/train/label/
+  val_before_chip_dir: /media/ate/ssd/mrv/patch256/val/before
+  val_after_chip_dir: /media/ate/ssd/mrv/patch256/val/after
+  val_label_dir: /media/ate/ssd/mrv/patch256/val/label
+  metadata_path: configs/metadata.yaml
+  batch_size: 10
+  num_workers: 8
+  platform: sentinel-2-l2a
+model:
+  num_classes: 2
+  feature_maps:
+    - 3
+    - 5
+    - 7
+    - 11
+  ckpt_path: checkpoints/clay-v1-base.ckpt
+  lr: 1e-5
+  wd: 0.05
+  b1: 0.9
+  b2: 0.95
+trainer:
+  accelerator: auto
+  strategy: ddp
+  devices: auto
+  num_nodes: 1
+  precision: bf16-mixed
+  log_every_n_steps: 5
+  max_epochs: 8
+  accumulate_grad_batches: 1
+  default_root_dir: checkpoints/change
+  fast_dev_run: False
+  num_sanity_val_steps: 0
+  logger:
+    - class_path: lightning.pytorch.loggers.CSVLogger
+      init_args:
+        save_dir: logs/
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        dirpath: checkpoints/segment
+        auto_insert_metric_name: False
+        filename: chesapeake-7class-segment_epoch-{epoch:02d}_val-iou-{val/iou:.4f}
+        monitor: val/loss
+        mode: min
+        save_last: True
+        save_top_k: 2
+        save_weights_only: True
+        verbose: True
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: step
+  plugins:
+    - class_path: lightning.pytorch.plugins.io.AsyncCheckpointIO
+
